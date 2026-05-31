@@ -1,12 +1,23 @@
-import React from 'react';
+import React, { useEffect } from 'react';
 import { useAppContext } from './context/AppContext';
 import LoginView from './views/LoginView';
 import ResidentApp from './views/ResidentApp';
 import AdminDashboard from './views/AdminDashboard';
 import GateSimulator from './views/GateSimulator';
 
+const VIEW_TITLES = {
+  login: 'VexWard - Inicio',
+  admin: 'VexWard - Panel',
+  resident: 'VexWard - Residentes',
+  simulator: 'VexWard - Reja',
+};
+
 function App() {
   const { currentView } = useAppContext();
+
+  useEffect(() => {
+    document.title = VIEW_TITLES[currentView] || 'VexWard';
+  }, [currentView]);
 
   return (
     <div className="w-full min-h-screen bg-slate-900 text-slate-100 font-sans">

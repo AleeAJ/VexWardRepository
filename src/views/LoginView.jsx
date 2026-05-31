@@ -13,13 +13,57 @@ const LoginView = () => {
   const [regTorre, setRegTorre] = useState('');
   const [regId, setRegId] = useState('');
 
-  const handleManualLogin = (e) => {
+  const handleManualLogin = async (e) => {
     e.preventDefault();
-    // Simple demo validation
-    if (email.includes('admin')) {
-      login('admin');
-    } else {
-      login('resident');
+
+    const API_URL = '/api';
+
+    try {
+      if (isLogin) {
+        // --- LOGIN ---
+        const res = await fetch(`${API_URL}/login`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ email, password }),
+        });
+        const data = await res.json();
+
+        if (data.success) {
+          login(data.role);
+        } else {
+          alert(data.message || 'Error al iniciar sesión.');
+        }
+      } else {
+        // --- REGISTER ---
+        const res = await fetch(`${API_URL}/register`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            name: regName,
+            rut: regId,
+            departamento: regDepto,
+            torre: regTorre,
+            email,
+            password,
+          }),
+        });
+        const data = await res.json();
+
+        if (data.success) {
+          alert('¡Cuenta creada exitosamente! Ahora puedes iniciar sesión.');
+          setIsLogin(true);
+        } else {
+          alert(data.message || 'Error al registrar.');
+        }
+      }
+    } catch (err) {
+      console.error('Error de conexión:', err);
+      // Fallback: si el servidor no está disponible, usar demo
+      if (email.includes('admin')) {
+        login('admin');
+      } else {
+        login('resident');
+      }
     }
   };
 
