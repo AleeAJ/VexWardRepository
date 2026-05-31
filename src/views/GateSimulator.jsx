@@ -110,6 +110,16 @@ const GateSimulator = () => {
           </h1>
         </div>
       </div>
+
+      {/* VexCorp Copyright Badge */}
+      <div className="absolute bottom-6 right-6 z-50 text-right">
+        <p className="text-[11px] text-white/40 font-medium tracking-wide">
+          © {new Date().getFullYear()} VexCorp
+        </p>
+        <p className="text-[9px] text-white/25 mt-0.5">
+          Todos los derechos reservados.
+        </p>
+      </div>
     </div>
   );
 };

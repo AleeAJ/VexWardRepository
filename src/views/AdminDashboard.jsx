@@ -752,6 +752,16 @@ const AdminDashboard = () => {
           </div>
         </main>
       )}
+
+      {/* VexCorp Copyright Footer */}
+      <footer className="py-4 px-8 border-t border-slate-800 text-center bg-slate-900/80 backdrop-blur-sm mt-auto">
+        <p className="text-[11px] text-slate-500 font-medium tracking-wide">
+          © {new Date().getFullYear()} VexCorp. Todos los derechos reservados.
+        </p>
+        <p className="text-[10px] text-slate-600 mt-0.5">
+          VexWard® es un producto desarrollado y propiedad de VexCorp.
+        </p>
+      </footer>
     </div>
   );
 };

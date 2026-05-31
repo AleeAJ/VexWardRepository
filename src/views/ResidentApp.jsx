@@ -243,6 +243,16 @@ const ResidentApp = () => {
               </div>
             </div>
           )}
+
+          {/* VexCorp Copyright */}
+          <div className="mt-8 pt-4 border-t border-slate-800 text-center pb-4">
+            <p className="text-[11px] text-slate-500 font-medium tracking-wide">
+              © {new Date().getFullYear()} VexCorp. Todos los derechos reservados.
+            </p>
+            <p className="text-[10px] text-slate-600 mt-0.5">
+              VexWard® es un producto desarrollado y propiedad de VexCorp.
+            </p>
+          </div>
         </main>
 
         {/* Bottom Navigation */}

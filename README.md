@@ -1,19 +1,22 @@
-# React + Vite
+# VexWard
 
-This template provides a minimal setup to get React working in Vite with HMR and some ESLint rules.
+**Sistema de Control de Acceso Inteligente**
 
-Spanish : 
-Usa el .bat para que inicie la aplicacion como prototipo , y se abrira 3 cmd para correr los run devs o node server.
+Desarrollado por **VexCorp**.
 
-Currently, two official plugins are available:
+## Descripción
 
-- [@vitejs/plugin-react](https://github.com/vitejs/vite-plugin-react/blob/main/packages/plugin-react) uses [Oxc](https://oxc.rs)
-- [@vitejs/plugin-react-swc](https://github.com/vitejs/vite-plugin-react/blob/main/packages/plugin-react-swc) uses [SWC](https://swc.rs/)
+VexWard es un sistema de control de acceso inteligente para comunidades residenciales. Permite la gestión de accesos mediante QR, enrolamiento de residentes, generación de pases de visita y monitoreo en tiempo real.
 
-## React Compiler
+## Tecnologías
 
-The React Compiler is not enabled on this template because of its impact on dev & build performances. To add it, see [this documentation](https://react.dev/learn/react-compiler/installation).
+- React 19 + Vite
+- TailwindCSS 4
+- Node.js + Express
+- Socket.IO (comunicación en tiempo real)
 
-## Expanding the ESLint configuration
+## Licencia y Derechos
 
-If you are developing a production application, we recommend using TypeScript with type-aware lint rules enabled. Check out the [TS template](https://github.com/vitejs/vite/tree/main/packages/create-vite/template-react-ts) for information on how to integrate TypeScript and [`typescript-eslint`](https://typescript-eslint.io) in your project.
+© 2026 VexCorp. Todos los derechos reservados.
+
+VexWard® es un producto desarrollado y propiedad exclusiva de **VexCorp**. Queda prohibida la reproducción, distribución o modificación total o parcial de este software sin la autorización expresa y por escrito de VexCorp.

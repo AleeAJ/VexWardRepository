@@ -6,10 +6,10 @@ import AdminDashboard from './views/AdminDashboard';
 import GateSimulator from './views/GateSimulator';
 
 const VIEW_TITLES = {
-  login: 'VexWard - Inicio',
-  admin: 'VexWard - Panel',
-  resident: 'VexWard - Residentes',
-  simulator: 'VexWard - Reja',
+  login: 'VexWard - Inicio | VexCorp',
+  admin: 'VexWard - Panel | VexCorp',
+  resident: 'VexWard - Residentes | VexCorp',
+  simulator: 'VexWard - Reja | VexCorp',
 };
 
 function App() {
