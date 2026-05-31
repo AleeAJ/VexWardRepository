@@ -1,9 +1,10 @@
 import React, { useState } from 'react';
 import { useAppContext } from '../context/AppContext';
-import { LogOut, Unlock, UserPlus, History, X, QrCode } from 'lucide-react';
+import { LogOut, Unlock, UserPlus, History, X, QrCode, Fingerprint } from 'lucide-react';
 import clsx from 'clsx';
 import { format, formatDistanceToNow } from 'date-fns';
 import { es } from 'date-fns/locale';
+import { QRCodeSVG } from 'qrcode.react';
 
 const ResidentApp = () => {
   const { activeUser, logout, gateState, openGate, accessHistory, generateGuestPass } = useAppContext();
@@ -14,7 +15,7 @@ const ResidentApp = () => {
   const handleCreatePass = (e) => {
     e.preventDefault();
     if (!guestName.trim()) return;
-    const pass = generateGuestPass(guestName);
+    const pass = generateGuestPass(guestName, activeUser);
     setActivePass(pass);
     setGuestName('');
   };
@@ -30,7 +31,7 @@ const ResidentApp = () => {
             <img src={activeUser?.avatar} alt={activeUser?.name} className="w-10 h-10 rounded-full bg-slate-800 border border-slate-700" />
             <div>
               <div className="text-white font-medium text-sm leading-tight">{activeUser?.name}</div>
-              <div className="text-emerald-400 text-xs">{activeUser?.house}</div>
+              <div className="text-emerald-400 text-xs">{activeUser?.departamento ? `Depto. ${activeUser.departamento} · Torre ${activeUser.torre}` : ''}</div>
             </div>
           </div>
           <button 
@@ -144,7 +145,7 @@ const ResidentApp = () => {
                   </button>
                 </form>
               ) : (
-                <div className="glass-card rounded-3xl p-6 text-center space-y-6 border border-emerald-500/20 relative overflow-hidden">
+                <div className="glass-card rounded-3xl p-6 text-center space-y-5 border border-emerald-500/20 relative overflow-hidden">
                   <div className="absolute top-0 left-0 w-full h-1 bg-gradient-to-r from-emerald-400 to-teal-400"></div>
                   
                   <div className="flex justify-between items-start">
@@ -160,13 +161,39 @@ const ResidentApp = () => {
                     </button>
                   </div>
 
-                  <div className="bg-white p-4 rounded-2xl mx-auto w-48 h-48 flex items-center justify-center">
-                    {/* Simulated QR Code using a pattern */}
-                    <div className="w-full h-full border-8 border-slate-900 rounded-lg flex flex-wrap gap-1 p-1 bg-white relative">
-                      {[...Array(64)].map((_, i) => (
-                        <div key={i} className={clsx("w-[10%] h-[10%] bg-slate-900", Math.random() > 0.5 ? "opacity-100" : "opacity-0")}></div>
-                      ))}
-                      <div className="absolute inset-0 bg-gradient-to-b from-transparent to-white/50 animate-pulse"></div>
+                  {/* Real QR Code */}
+                  <div className="bg-white p-4 rounded-2xl mx-auto w-52 h-52 flex items-center justify-center shadow-lg shadow-emerald-500/10">
+                    <QRCodeSVG 
+                      value={JSON.stringify({
+                        type: 'GUEST_PASS',
+                        id: activePass.id,
+                        guest: activePass.guestName,
+                        residentRut: activePass.createdBy?.rut || activeUser?.rut,
+                        residentName: activePass.createdBy?.name || activeUser?.name,
+                        depto: activePass.createdBy?.departamento || activeUser?.departamento,
+                        torre: activePass.createdBy?.torre || activeUser?.torre,
+                        expires: activePass.expires,
+                      })}
+                      size={180}
+                      level="H"
+                      bgColor="#ffffff"
+                      fgColor="#0f172a"
+                    />
+                  </div>
+
+                  {/* Pass Details */}
+                  <div className="bg-slate-800/40 rounded-xl p-3 text-left border border-slate-700/30 space-y-1.5">
+                    <div className="flex items-center justify-between">
+                      <span className="text-[11px] text-slate-500 uppercase tracking-wider">ID del Pase</span>
+                      <span className="text-xs font-mono text-violet-400 bg-violet-500/10 px-1.5 py-0.5 rounded">{activePass.id}</span>
+                    </div>
+                    <div className="flex items-center justify-between">
+                      <span className="text-[11px] text-slate-500 uppercase tracking-wider">Autorizado por</span>
+                      <span className="text-xs text-slate-300">{activeUser?.name}</span>
+                    </div>
+                    <div className="flex items-center justify-between">
+                      <span className="text-[11px] text-slate-500 uppercase tracking-wider">RUT Residente</span>
+                      <span className="text-xs text-slate-400 font-mono flex items-center gap-1"><Fingerprint size={10} />{activeUser?.rut}</span>
                     </div>
                   </div>
 
@@ -177,7 +204,8 @@ const ResidentApp = () => {
                     </p>
                   </div>
 
-                  <button className="text-xs text-emerald-400 font-medium hover:text-emerald-300 uppercase tracking-wider">
+                  <button className="w-full bg-slate-800 hover:bg-slate-700 text-emerald-400 border border-slate-700 font-medium rounded-xl px-4 py-2.5 transition-all active:scale-95 flex justify-center items-center gap-2 text-sm">
+                    <QrCode size={16} />
                     Compartir Pase
                   </button>
                 </div>

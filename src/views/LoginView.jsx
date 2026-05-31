@@ -1,6 +1,6 @@
 import React, { useState } from 'react';
 import { useAppContext } from '../context/AppContext';
-import { ShieldCheck, User, Shield, Monitor, Mail, Lock, KeyRound, ArrowRight } from 'lucide-react';
+import { ShieldCheck, User, Shield, Monitor, Mail, Lock, KeyRound, ArrowRight, Building, Hash } from 'lucide-react';
 import clsx from 'clsx';
 
 const LoginView = () => {
@@ -8,6 +8,10 @@ const LoginView = () => {
   const [isLogin, setIsLogin] = useState(true);
   const [email, setEmail] = useState('moises@vexward.com');
   const [password, setPassword] = useState('123456');
+  const [regName, setRegName] = useState('');
+  const [regDepto, setRegDepto] = useState('');
+  const [regTorre, setRegTorre] = useState('');
+  const [regId, setRegId] = useState('');
 
   const handleManualLogin = (e) => {
     e.preventDefault();
@@ -62,17 +66,76 @@ const LoginView = () => {
         {/* Realistic Auth Form */}
         <form onSubmit={handleManualLogin} className="space-y-4 mb-8">
           {!isLogin && (
-            <div className="space-y-1">
-              <label className="text-xs font-medium text-slate-400 ml-1">Nombre Completo</label>
-              <div className="relative">
-                <User size={18} className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-500" />
-                <input 
-                  type="text" 
-                  placeholder="Ej. Juan Pérez"
-                  className="w-full bg-slate-950/50 border border-slate-800 rounded-xl pl-10 pr-4 py-3 text-white placeholder-slate-600 focus:outline-none focus:border-emerald-500 focus:ring-1 focus:ring-emerald-500 transition-all text-sm"
-                />
+            <>
+              {/* Nombre y Apellido */}
+              <div className="space-y-1">
+                <label className="text-xs font-medium text-slate-400 ml-1">Nombre y Apellido</label>
+                <div className="relative">
+                  <User size={18} className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-500" />
+                  <input 
+                    type="text" 
+                    value={regName}
+                    onChange={(e) => setRegName(e.target.value)}
+                    placeholder="Ej. Juan Pérez"
+                    className="w-full bg-slate-950/50 border border-slate-800 rounded-xl pl-10 pr-4 py-3 text-white placeholder-slate-600 focus:outline-none focus:border-emerald-500 focus:ring-1 focus:ring-emerald-500 transition-all text-sm"
+                  />
+                </div>
               </div>
-            </div>
+
+              {/* RUT */}
+              <div className="space-y-1">
+                <label className="text-xs font-medium text-slate-400 ml-1">RUT</label>
+                <div className="relative">
+                  <Hash size={18} className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-500" />
+                  <input 
+                    type="text" 
+                    value={regId}
+                    onChange={(e) => setRegId(e.target.value)}
+                    placeholder="Ej. 12.345.678-9"
+                    className="w-full bg-slate-950/50 border border-slate-800 rounded-xl pl-10 pr-4 py-3 text-white placeholder-slate-600 focus:outline-none focus:border-emerald-500 focus:ring-1 focus:ring-emerald-500 transition-all text-sm"
+                  />
+                </div>
+              </div>
+
+              {/* Departamento y Torre en fila */}
+              <div className="grid grid-cols-2 gap-3">
+                {/* Departamento */}
+                <div className="space-y-1">
+                  <label className="text-xs font-medium text-slate-400 ml-1">Departamento</label>
+                  <div className="relative">
+                    <Building size={18} className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-500 pointer-events-none" />
+                    <select
+                      value={regDepto}
+                      onChange={(e) => setRegDepto(e.target.value)}
+                      className="w-full bg-slate-950/50 border border-slate-800 rounded-xl pl-10 pr-4 py-3 text-white focus:outline-none focus:border-emerald-500 focus:ring-1 focus:ring-emerald-500 transition-all text-sm appearance-none cursor-pointer"
+                    >
+                      <option value="" disabled className="text-slate-600">Depto.</option>
+                      {Array.from({ length: 19 }, (_, i) => i + 6).map(num => (
+                        <option key={num} value={num} className="bg-slate-900 text-white">{num}</option>
+                      ))}
+                    </select>
+                  </div>
+                </div>
+
+                {/* Torre */}
+                <div className="space-y-1">
+                  <label className="text-xs font-medium text-slate-400 ml-1">Torre</label>
+                  <div className="relative">
+                    <Building size={18} className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-500 pointer-events-none" />
+                    <select
+                      value={regTorre}
+                      onChange={(e) => setRegTorre(e.target.value)}
+                      className="w-full bg-slate-950/50 border border-slate-800 rounded-xl pl-10 pr-4 py-3 text-white focus:outline-none focus:border-emerald-500 focus:ring-1 focus:ring-emerald-500 transition-all text-sm appearance-none cursor-pointer"
+                    >
+                      <option value="" disabled className="text-slate-600">Torre</option>
+                      <option value="8" className="bg-slate-900 text-white">8</option>
+                      <option value="2" className="bg-slate-900 text-white">2</option>
+                      <option value="6" className="bg-slate-900 text-white">6</option>
+                    </select>
+                  </div>
+                </div>
+              </div>
+            </>
           )}
 
           <div className="space-y-1">
