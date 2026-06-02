@@ -11,7 +11,7 @@ VexWard es un sistema de control de acceso inteligente para comunidades residenc
 ## Tecnologías
 
 - React 19 + Vite
-- TailwindCSS 4 
+- TailwindCSS 4
 - Node.js + Express
 - Socket.IO (comunicación en tiempo real)
 
@@ -20,4 +20,3 @@ VexWard es un sistema de control de acceso inteligente para comunidades residenc
 © 2026 VexCorp. Todos los derechos reservados.
 
 VexWard® es un producto desarrollado y propiedad exclusiva de **VexCorp**. Queda prohibida la reproducción, distribución o modificación total o parcial de este software sin la autorización expresa y por escrito de VexCorp.
- 

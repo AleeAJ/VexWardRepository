@@ -4,10 +4,12 @@ import LoginView from './views/LoginView';
 import ResidentApp from './views/ResidentApp';
 import AdminDashboard from './views/AdminDashboard';
 import GateSimulator from './views/GateSimulator';
+import SuperAdminDashboard from './views/SuperAdminDashboard';
 
 const VIEW_TITLES = {
   login: 'VexWard - Inicio | VexCorp',
   admin: 'VexWard - Panel | VexCorp',
+  superadmin: 'VexWard - SuperAdmin | VexCorp',
   resident: 'VexWard - Residentes | VexCorp',
   simulator: 'VexWard - Reja | VexCorp',
 };
@@ -24,6 +26,7 @@ function App() {
       {currentView === 'login' && <LoginView />}
       {currentView === 'resident' && <ResidentApp />}
       {currentView === 'admin' && <AdminDashboard />}
+      {currentView === 'superadmin' && <SuperAdminDashboard />}
       {currentView === 'simulator' && <GateSimulator />}
     </div>
   );

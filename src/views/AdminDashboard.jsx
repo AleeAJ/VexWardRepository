@@ -1,767 +1,532 @@
 import React, { useState } from 'react';
 import { useAppContext } from '../context/AppContext';
-import { LogOut, Activity, Users, ShieldAlert, Check, X, Search, UserMinus, UserPlus, QrCode, Smartphone, Hash, Building, Fingerprint, Eye, ChevronDown, ChevronUp, Ticket } from 'lucide-react';
+import LiveMonitor from '../components/LiveMonitor';
+import ApprovalQueue, { Toast } from '../components/ApprovalQueue';
+import {
+  LogOut, Activity, Users, UserPlus, QrCode, Unlock, Lock,
+  ShieldAlert, Check, X, Search, Ticket, Fingerprint, Building,
+  Hash, Smartphone, Car, ArrowDownLeft, ChevronDown, Clock,
+  ClipboardList, KeyRound, AlertCircle
+} from 'lucide-react';
 import { formatDistanceToNow, format } from 'date-fns';
 import { es } from 'date-fns/locale';
 import { QRCodeSVG } from 'qrcode.react';
+import clsx from 'clsx';
 
-const AdminDashboard = () => {
-  const { logout, accessHistory, pendingApprovals, approveUser, residents, revokeAccess, enrollResident, guestPasses, generateResidentQR } = useAppContext();
-  const [searchTerm, setSearchTerm] = useState('');
-  const [activeTab, setActiveTab] = useState('overview'); // 'overview', 'enrollment', 'passes', 'qrgen'
-
-  // Enrollment form state
-  const [enrollName, setEnrollName] = useState('');
-  const [enrollRut, setEnrollRut] = useState('');
-  const [enrollDepto, setEnrollDepto] = useState('');
-  const [enrollTorre, setEnrollTorre] = useState('');
-  const [enrollDevice, setEnrollDevice] = useState('');
-  const [enrollMsg, setEnrollMsg] = useState(null); // { type: 'success' | 'error', text: string }
-
-  // QR Generator state
-  const [qrRutSearch, setQrRutSearch] = useState('');
-  const [qrResult, setQrResult] = useState(null);
-
-  // Expanded resident details
-  const [expandedResident, setExpandedResident] = useState(null);
-
-  const filteredResidents = residents.filter(r => 
-    r.name.toLowerCase().includes(searchTerm.toLowerCase()) || 
-    `depto ${r.departamento}`.toLowerCase().includes(searchTerm.toLowerCase()) ||
-    `torre ${r.torre}`.toLowerCase().includes(searchTerm.toLowerCase()) ||
-    (r.rut && r.rut.toLowerCase().includes(searchTerm.toLowerCase()))
-  );
-
-  const handleEnroll = (e) => {
-    e.preventDefault();
-    if (!enrollName.trim() || !enrollRut.trim() || !enrollDepto || !enrollTorre || !enrollDevice.trim()) {
-      setEnrollMsg({ type: 'error', text: 'Todos los campos son obligatorios.' });
-      return;
-    }
-    
-    const result = enrollResident({
-      name: enrollName.trim(),
-      rut: enrollRut.trim(),
-      departamento: enrollDepto,
-      torre: enrollTorre,
-      deviceId: enrollDevice.trim(),
-    });
-    
-    if (result.success) {
-      setEnrollMsg({ type: 'success', text: `✓ ${result.resident.name} enrolado exitosamente.` });
-      setEnrollName(''); setEnrollRut(''); setEnrollDepto(''); setEnrollTorre(''); setEnrollDevice('');
-      setTimeout(() => setEnrollMsg(null), 4000);
-    } else {
-      setEnrollMsg({ type: 'error', text: result.message });
-    }
-  };
-
-  const handleQrSearch = (e) => {
-    e.preventDefault();
-    const result = generateResidentQR(qrRutSearch.trim());
-    setQrResult(result);
-  };
-
-  const activePasses = guestPasses.filter(p => p.status === 'active' && new Date(p.expires) > new Date());
-  
-  const tabs = [
-    { id: 'overview', label: 'Panel General', icon: Activity },
-    { id: 'enrollment', label: 'Enrolamiento', icon: UserPlus },
-    { id: 'passes', label: 'Pases de Visita', icon: Ticket },
-    { id: 'qrgen', label: 'Generar QR', icon: QrCode },
-  ];
+// ─── Gate Button Panel ────────────────────────────────────────────────────────
+const GatePanel = ({ gateState, openGate, accessHistory }) => {
+  const recentConcierge = accessHistory.filter((e) => e.method === 'Conserjería').slice(0, 6);
 
   return (
-    <div className="min-h-screen bg-slate-900 flex flex-col">
-      {/* Top Navbar */}
-      <nav className="h-16 glass-panel border-b border-slate-800 flex items-center justify-between px-8 z-20">
-        <div className="flex items-center gap-3">
-          <div className="w-8 h-8 rounded-lg bg-emerald-500/20 text-emerald-400 flex items-center justify-center">
-            <Activity size={20} />
-          </div>
-          <span className="text-xl font-bold text-white tracking-tight">Conserjería Central</span>
+    <div className="grid grid-cols-1 lg:grid-cols-2 gap-8 items-start">
+      {/* Big Gate Button */}
+      <div className="flex flex-col items-center justify-center gap-8 py-8">
+        <div className="text-center">
+          <h2 className="text-2xl font-bold text-white mb-2">Control de Acceso</h2>
+          <p className="text-slate-400 text-sm">Abrir reja principal desde conserjería</p>
         </div>
-        
-        <div className="flex items-center gap-6">
-          <div className="flex items-center gap-2">
-            <span className="relative flex h-3 w-3">
-              <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-emerald-400 opacity-75"></span>
-              <span className="relative inline-flex rounded-full h-3 w-3 bg-emerald-500"></span>
-            </span>
-            <span className="text-sm text-slate-300 font-medium">Sistema Activo</span>
-          </div>
-          <div className="h-6 w-px bg-slate-700"></div>
-          <button 
-            onClick={logout}
-            className="flex items-center gap-2 text-slate-400 hover:text-white transition-colors"
+
+        <div className="relative">
+          <div className={clsx(
+            'absolute inset-0 rounded-full blur-3xl transition-all duration-1000',
+            gateState === 'closed' ? 'bg-violet-500/20 scale-100' :
+            gateState === 'opening' ? 'bg-violet-400/40 scale-110 animate-pulse' :
+            'bg-emerald-400/40 scale-125'
+          )} />
+          <button
+            onClick={() => openGate({ name: 'Admin Conserjería', method: 'Conserjería', role: 'admin' })}
+            disabled={gateState !== 'closed'}
+            className={clsx(
+              'relative w-52 h-52 rounded-full flex flex-col items-center justify-center gap-4 transition-all duration-500 shadow-2xl overflow-hidden group border-4',
+              gateState === 'closed'
+                ? 'bg-gradient-to-b from-slate-800 to-slate-900 border-violet-500/40 hover:border-violet-400/70 active:scale-95'
+                : gateState === 'opening'
+                  ? 'bg-slate-800 border-violet-400/50 scale-95'
+                  : 'bg-gradient-to-b from-emerald-500 to-emerald-600 border-emerald-400 scale-100'
+            )}
           >
-            <LogOut size={18} />
-            <span className="text-sm font-medium">Salir</span>
+            <div className={clsx('absolute inset-0 bg-gradient-to-t from-violet-500/20 to-transparent opacity-0 transition-opacity duration-300', gateState === 'closed' && 'group-hover:opacity-100')} />
+            {gateState === 'opening' ? (
+              <span className="w-12 h-12 border-4 border-violet-500/30 border-t-violet-400 rounded-full animate-spin" />
+            ) : gateState === 'open' ? (
+              <Unlock size={52} className="text-white drop-shadow-md" />
+            ) : (
+              <Unlock size={52} className="text-violet-400" />
+            )}
+            <span className={clsx('text-base font-bold tracking-widest uppercase transition-colors', gateState === 'open' ? 'text-white' : gateState === 'opening' ? 'text-violet-300' : 'text-slate-200')}>
+              {gateState === 'closed' ? 'ABRIR REJA' : gateState === 'opening' ? 'ABRIENDO...' : 'ABIERTA'}
+            </span>
           </button>
         </div>
-      </nav>
 
-      {/* Tab Navigation */}
-      <div className="bg-slate-900/80 backdrop-blur-sm border-b border-slate-800 px-8 sticky top-0 z-10">
-        <div className="max-w-7xl mx-auto flex gap-1">
-          {tabs.map(tab => (
-            <button
-              key={tab.id}
-              onClick={() => setActiveTab(tab.id)}
-              className={`flex items-center gap-2 px-4 py-3 text-sm font-medium border-b-2 transition-all ${
-                activeTab === tab.id 
-                  ? 'border-emerald-400 text-emerald-400' 
-                  : 'border-transparent text-slate-400 hover:text-slate-200 hover:border-slate-600'
-              }`}
-            >
-              <tab.icon size={16} />
-              {tab.label}
-              {tab.id === 'passes' && activePasses.length > 0 && (
-                <span className="ml-1 px-1.5 py-0.5 rounded-full text-[10px] font-bold bg-emerald-500/20 text-emerald-400 border border-emerald-500/30">
-                  {activePasses.length}
-                </span>
-              )}
+        <div className={clsx(
+          'flex items-center gap-2 px-5 py-2.5 rounded-full border text-sm font-medium transition-all',
+          gateState === 'closed' ? 'bg-slate-800/50 border-slate-700/50 text-slate-400' :
+          gateState === 'opening' ? 'bg-violet-500/10 border-violet-500/30 text-violet-400' :
+          'bg-emerald-500/10 border-emerald-500/30 text-emerald-400'
+        )}>
+          <span className={clsx('w-2.5 h-2.5 rounded-full', gateState === 'closed' ? 'bg-slate-500' : gateState === 'opening' ? 'bg-violet-400 animate-pulse' : 'bg-emerald-400 animate-pulse')} />
+          {gateState === 'closed' ? 'Reja Cerrada — Sistema Listo' : gateState === 'opening' ? 'Abriendo reja...' : 'Acceso Concedido — Reja Abierta'}
+        </div>
+      </div>
+
+      {/* Recent Concierge Openings */}
+      <div className="glass-card rounded-2xl border border-slate-800 overflow-hidden">
+        <div className="p-5 border-b border-slate-800 bg-gradient-to-r from-violet-500/5 to-transparent">
+          <h3 className="text-sm font-bold text-white flex items-center gap-2"><Clock size={15} className="text-violet-400" />Últimas Aperturas desde Conserjería</h3>
+        </div>
+        <div className="divide-y divide-slate-800/60">
+          {recentConcierge.length === 0 && (
+            <div className="py-10 text-center text-slate-600 text-sm">Aún no hay aperturas registradas desde conserjería.</div>
+          )}
+          {recentConcierge.map((e) => (
+            <div key={e.id} className="flex items-center gap-3 p-4 hover:bg-slate-800/20 transition-colors">
+              <div className="w-8 h-8 rounded-xl bg-violet-500/15 flex items-center justify-center text-violet-400 shrink-0">
+                <Unlock size={16} />
+              </div>
+              <div className="flex-1">
+                <div className="text-sm font-medium text-slate-200">{e.name}</div>
+                <div className="text-xs text-slate-500">{formatDistanceToNow(new Date(e.time), { addSuffix: true, locale: es })}</div>
+              </div>
+              <span className="text-[10px] font-bold uppercase text-violet-400 bg-violet-500/10 border border-violet-500/20 px-2 py-1 rounded-lg">Conserjería</span>
+            </div>
+          ))}
+        </div>
+      </div>
+    </div>
+  );
+};
+
+// ─── QR por Residente (Olvidó Celular) ───────────────────────────────────────
+const ResidentQRPanel = ({ residents, generateResidentQR, addConciergeQrRequest, conciergeQrLog }) => {
+  const [search, setSearch] = useState('');
+  const [selected, setSelected] = useState(null);
+  const [qrResult, setQrResult] = useState(null);
+  const [toast, setToast] = useState(null);
+
+  const filtered = residents.filter((r) =>
+    r.name.toLowerCase().includes(search.toLowerCase()) ||
+    r.rut?.toLowerCase().includes(search.toLowerCase()) ||
+    `${r.departamento}`.includes(search) ||
+    `${r.id}`.includes(search)
+  );
+
+  const handleGenerateQR = (resident) => {
+    const result = generateResidentQR(resident.rut);
+    if (result.success) {
+      setQrResult(result);
+      setSelected(resident);
+      addConciergeQrRequest({
+        residentId: resident.id, residentName: resident.name, residentRut: resident.rut,
+        departamento: resident.departamento, torre: resident.torre, requestedBy: 'Admin Conserjería',
+      });
+      setToast(`✓ QR generado para ${resident.name} — registrado en SuperAdmin`);
+      setTimeout(() => setToast(null), 4000);
+    }
+  };
+
+  return (
+    <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
+      {toast && <Toast message={toast} type="success" onDismiss={() => setToast(null)} />}
+
+      {/* Resident Search */}
+      <div>
+        <div className="mb-4">
+          <h2 className="text-lg font-bold text-white flex items-center gap-2 mb-1">
+            <QrCode size={18} className="text-violet-400" /> QR para Residente sin Celular
+          </h2>
+          <p className="text-sm text-slate-400">Busque al residente por ID, nombre o RUT y genere un QR temporal. La solicitud queda registrada en el panel SuperAdmin.</p>
+        </div>
+
+        <div className="mb-4 p-3 rounded-xl bg-violet-500/5 border border-violet-500/20 text-xs text-violet-300/80 flex items-start gap-2">
+          <AlertCircle size={13} className="shrink-0 mt-0.5" />
+          Cada solicitud de QR por conserjería queda registrada automáticamente en el log del SuperAdmin para auditoría.
+        </div>
+
+        <div className="relative mb-4">
+          <Search size={16} className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-500" />
+          <input type="text" value={search} onChange={(e) => { setSearch(e.target.value); setQrResult(null); }}
+            placeholder="Buscar por ID, nombre, RUT..."
+            className="w-full bg-slate-900 border border-slate-700 rounded-xl pl-9 pr-4 py-2.5 text-sm text-white placeholder-slate-500 focus:outline-none focus:ring-1 focus:ring-violet-500 focus:border-violet-500 transition-all" />
+        </div>
+
+        <div className="space-y-2 max-h-[400px] overflow-auto custom-scrollbar">
+          {filtered.map((r) => (
+            <button key={r.id} onClick={() => handleGenerateQR(r)}
+              className={clsx(
+                'w-full text-left flex items-center gap-3 p-3.5 rounded-xl border transition-all group',
+                selected?.id === r.id
+                  ? 'bg-violet-500/15 border-violet-500/40'
+                  : 'bg-slate-800/40 border-slate-800 hover:border-violet-500/30 hover:bg-slate-800'
+              )}>
+              <div className="w-8 h-8 rounded-full bg-slate-700 flex items-center justify-center text-xs font-bold text-slate-300 border border-slate-600 shrink-0">
+                {r.id}
+              </div>
+              <img src={r.avatar} alt="" className="w-8 h-8 rounded-full bg-slate-800 border border-slate-700 shrink-0" />
+              <div className="flex-1 min-w-0">
+                <div className="text-sm font-semibold text-white truncate">{r.name}</div>
+                <div className="text-xs text-slate-400 font-mono">{r.rut} · D-{r.departamento} T-{r.torre}</div>
+              </div>
+              <span className="text-xs text-violet-400 opacity-0 group-hover:opacity-100 transition-opacity shrink-0 font-bold">Generar QR →</span>
             </button>
           ))}
         </div>
       </div>
 
-      {/* ===================== OVERVIEW TAB ===================== */}
-      {activeTab === 'overview' && (
-        <main className="flex-1 p-8 grid grid-cols-1 lg:grid-cols-12 gap-8 max-w-7xl mx-auto w-full">
-          
-          {/* Left Column: Live Feed & Stats */}
-          <div className="lg:col-span-8 flex flex-col gap-8">
-            
-            {/* Quick Stats */}
-            <div className="grid grid-cols-4 gap-4">
-              <div className="glass-card rounded-2xl p-5 border border-slate-800 relative overflow-hidden group">
-                <div className="absolute inset-0 bg-gradient-to-br from-emerald-500/5 to-transparent opacity-0 group-hover:opacity-100 transition-opacity"></div>
-                <div className="flex items-center justify-between">
-                  <div>
-                    <div className="text-slate-400 text-xs font-medium mb-1">Accesos Hoy</div>
-                    <div className="text-2xl font-bold text-white">{accessHistory.length + 12}</div>
-                  </div>
-                  <div className="w-10 h-10 rounded-xl bg-emerald-500/10 flex items-center justify-center text-emerald-400">
-                    <Activity size={20} />
-                  </div>
-                </div>
-              </div>
-              
-              <div className="glass-card rounded-2xl p-5 border border-slate-800 relative overflow-hidden group">
-                <div className="absolute inset-0 bg-gradient-to-br from-blue-500/5 to-transparent opacity-0 group-hover:opacity-100 transition-opacity"></div>
-                <div className="flex items-center justify-between">
-                  <div>
-                    <div className="text-slate-400 text-xs font-medium mb-1">Enrolados</div>
-                    <div className="text-2xl font-bold text-white">{residents.length}</div>
-                  </div>
-                  <div className="w-10 h-10 rounded-xl bg-blue-500/10 flex items-center justify-center text-blue-400">
-                    <Fingerprint size={20} />
-                  </div>
-                </div>
-              </div>
-
-              <div className="glass-card rounded-2xl p-5 border border-slate-800 relative overflow-hidden group">
-                <div className="absolute inset-0 bg-gradient-to-br from-violet-500/5 to-transparent opacity-0 group-hover:opacity-100 transition-opacity"></div>
-                <div className="flex items-center justify-between">
-                  <div>
-                    <div className="text-slate-400 text-xs font-medium mb-1">Pases Activos</div>
-                    <div className="text-2xl font-bold text-white">{activePasses.length}</div>
-                  </div>
-                  <div className="w-10 h-10 rounded-xl bg-violet-500/10 flex items-center justify-center text-violet-400">
-                    <Ticket size={20} />
-                  </div>
-                </div>
-              </div>
-
-              <div className="glass-card rounded-2xl p-5 border border-slate-800 relative overflow-hidden group">
-                <div className="absolute inset-0 bg-gradient-to-br from-rose-500/5 to-transparent opacity-0 group-hover:opacity-100 transition-opacity"></div>
-                <div className="flex items-center justify-between">
-                  <div>
-                    <div className="text-slate-400 text-xs font-medium mb-1">Alertas</div>
-                    <div className="text-2xl font-bold text-white">0</div>
-                  </div>
-                  <div className="w-10 h-10 rounded-xl bg-rose-500/10 flex items-center justify-center text-rose-400">
-                    <ShieldAlert size={20} />
-                  </div>
-                </div>
-              </div>
+      {/* QR Result */}
+      <div>
+        {qrResult?.success ? (
+          <div className="glass-card rounded-2xl border border-violet-500/25 overflow-hidden animate-in fade-in zoom-in-95 duration-300">
+            <div className="p-5 border-b border-violet-500/20 bg-gradient-to-r from-violet-500/10 to-transparent">
+              <h3 className="text-base font-bold text-white">QR Generado por Conserjería</h3>
+              <p className="text-xs text-violet-300/80 mt-0.5">Para: {qrResult.resident.name} · Este QR queda registrado en SuperAdmin</p>
             </div>
-
-            {/* Live Feed */}
-            <div className="glass-card rounded-2xl border border-slate-800 flex-1 flex flex-col min-h-[400px]">
-              <div className="p-6 border-b border-slate-800 flex items-center justify-between">
-                <h2 className="text-lg font-bold text-white flex items-center gap-2">
-                  <span className="w-2 h-2 rounded-full bg-emerald-500 animate-pulse"></span>
-                  Registro de Accesos en Vivo
-                </h2>
-                <button className="text-sm text-emerald-400 hover:text-emerald-300 font-medium">Exportar</button>
+            <div className="p-6 flex flex-col items-center space-y-5">
+              <div className="bg-white p-5 rounded-2xl shadow-xl shadow-violet-500/10">
+                <QRCodeSVG value={JSON.stringify(qrResult.qrData)} size={180} level="H" bgColor="#ffffff" fgColor="#0f172a" />
               </div>
-              
-              <div className="p-2 flex-1 overflow-auto">
-                <table className="w-full text-left border-collapse">
-                  <thead>
-                    <tr>
-                      <th className="py-3 px-4 text-xs font-medium text-slate-400 uppercase tracking-wider">Usuario / Invitado</th>
-                      <th className="py-3 px-4 text-xs font-medium text-slate-400 uppercase tracking-wider">Método</th>
-                      <th className="py-3 px-4 text-xs font-medium text-slate-400 uppercase tracking-wider">Tiempo</th>
-                      <th className="py-3 px-4 text-xs font-medium text-slate-400 uppercase tracking-wider text-right">Estado</th>
-                    </tr>
-                  </thead>
-                  <tbody className="divide-y divide-slate-800/50">
-                    {accessHistory.map((entry) => (
-                      <tr key={entry.id} className="hover:bg-slate-800/30 transition-colors animate-in fade-in slide-in-from-top-2">
-                        <td className="py-4 px-4">
-                          <div className="flex items-center gap-3">
-                            <div className="w-8 h-8 rounded-full bg-slate-700/50 flex items-center justify-center text-emerald-400">
-                              {entry.method.includes('Invitado') ? <Users size={16} /> : <UserMinus size={16} />}
-                            </div>
-                            <span className="font-medium text-slate-200">{entry.name}</span>
-                          </div>
-                        </td>
-                        <td className="py-4 px-4 text-sm text-slate-400">{entry.method}</td>
-                        <td className="py-4 px-4 text-sm text-slate-400">
-                          {formatDistanceToNow(new Date(entry.time), { addSuffix: true, locale: es })}
-                        </td>
-                        <td className="py-4 px-4 text-right">
-                          <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-xs font-medium bg-emerald-500/10 text-emerald-400 border border-emerald-500/20">
-                            <Check size={12} />
-                            Aprobado
-                          </span>
-                        </td>
-                      </tr>
-                    ))}
-                    {accessHistory.length === 0 && (
-                      <tr>
-                        <td colSpan="4" className="py-8 text-center text-slate-500">Sin accesos recientes</td>
-                      </tr>
-                    )}
-                  </tbody>
-                </table>
-              </div>
-            </div>
-          </div>
-
-          {/* Right Column: Approvals & Revocation Panel */}
-          <div className="lg:col-span-4 flex flex-col gap-8">
-            
-            {/* Pendings */}
-            <div className="glass-card rounded-2xl border border-slate-800 flex flex-col">
-              <div className="p-5 border-b border-slate-800">
-                <h2 className="text-lg font-bold text-white">Pendientes de Aprobación</h2>
-              </div>
-              <div className="p-5 space-y-4">
-                {pendingApprovals.map(req => (
-                  <div key={req.id} className="bg-slate-800/50 rounded-xl p-4 border border-slate-700/50">
-                    <div className="flex justify-between items-start mb-3">
-                      <div>
-                        <div className="font-medium text-white">{req.name}</div>
-                        <div className="text-xs text-slate-400">Depto. {req.departamento} · Torre {req.torre}</div>
-                        <div className="text-xs text-slate-500">{req.rut}</div>
-                      </div>
-                      <div className="text-xs text-slate-500">
-                        {formatDistanceToNow(new Date(req.requestTime), { locale: es })}
-                      </div>
-                    </div>
-                    <div className="flex gap-2">
-                      <button 
-                        onClick={() => approveUser(req.id)}
-                        className="flex-1 bg-emerald-500/10 hover:bg-emerald-500/20 text-emerald-400 border border-emerald-500/20 rounded-lg py-2 text-sm font-medium transition-colors flex items-center justify-center gap-1"
-                      >
-                        <Check size={16} /> Aprobar
-                      </button>
-                      <button 
-                        onClick={() => approveUser(req.id)}
-                        className="flex-1 bg-slate-800 hover:bg-slate-700 text-slate-300 border border-slate-700 rounded-lg py-2 text-sm font-medium transition-colors flex items-center justify-center gap-1"
-                      >
-                        <X size={16} /> Rechazar
-                      </button>
-                    </div>
-                  </div>
-                ))}
-                {pendingApprovals.length === 0 && (
-                  <div className="text-center text-slate-500 py-4 text-sm">No hay solicitudes pendientes.</div>
-                )}
-              </div>
-            </div>
-
-            {/* Revocation Panel */}
-            <div className="glass-card rounded-2xl border border-slate-800 flex-1 flex flex-col">
-              <div className="p-5 border-b border-slate-800">
-                <h2 className="text-lg font-bold text-white">Panel de Bloqueo</h2>
-                <p className="text-xs text-slate-400 mt-1">Revocar acceso a residentes por extravío o mora.</p>
-              </div>
-              
-              <div className="p-5 space-y-4">
-                <div className="relative">
-                  <Search size={16} className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-500" />
-                  <input 
-                    type="text" 
-                    placeholder="Buscar residente..." 
-                    value={searchTerm}
-                    onChange={(e) => setSearchTerm(e.target.value)}
-                    className="w-full bg-slate-900 border border-slate-700 rounded-xl pl-9 pr-4 py-2.5 text-sm text-white placeholder-slate-500 focus:outline-none focus:ring-1 focus:ring-rose-500 focus:border-rose-500 transition-all"
-                  />
-                </div>
-
-                <div className="space-y-2 max-h-[300px] overflow-auto pr-1 custom-scrollbar">
-                  {filteredResidents.map(res => (
-                    <div key={res.id} className="flex items-center justify-between p-3 rounded-xl hover:bg-slate-800/30 transition-colors">
-                      <div className="flex items-center gap-3">
-                        <img src={res.avatar} alt="" className="w-8 h-8 rounded-full bg-slate-800" />
-                        <div>
-                          <div className="text-sm font-medium text-slate-200">{res.name}</div>
-                          <div className="text-xs text-slate-500">Depto. {res.departamento} · Torre {res.torre}</div>
-                        </div>
-                      </div>
-                      <button 
-                        onClick={() => revokeAccess(res.id)}
-                        className="p-1.5 rounded-lg text-slate-500 hover:text-rose-400 hover:bg-rose-500/10 transition-colors"
-                        title="Revocar Acceso"
-                      >
-                        <ShieldAlert size={18} />
-                      </button>
-                    </div>
-                  ))}
-                </div>
-              </div>
-            </div>
-
-          </div>
-        </main>
-      )}
-
-      {/* ===================== ENROLLMENT TAB ===================== */}
-      {activeTab === 'enrollment' && (
-        <main className="flex-1 p-8 max-w-7xl mx-auto w-full grid grid-cols-1 lg:grid-cols-12 gap-8">
-          
-          {/* Enrollment Form */}
-          <div className="lg:col-span-5">
-            <div className="glass-card rounded-2xl border border-slate-800 overflow-hidden">
-              <div className="p-6 border-b border-slate-800 bg-gradient-to-r from-emerald-500/5 to-transparent">
-                <h2 className="text-lg font-bold text-white flex items-center gap-2">
-                  <UserPlus size={20} className="text-emerald-400" />
-                  Enrolar Nuevo Residente
-                </h2>
-                <p className="text-xs text-slate-400 mt-1">Vincule un residente con su dispositivo único para prevenir cuentas no supervisadas.</p>
-              </div>
-              
-              <form onSubmit={handleEnroll} className="p-6 space-y-4">
-                {/* RUT */}
-                <div className="space-y-1.5">
-                  <label className="text-xs font-semibold text-slate-300 uppercase tracking-wider">RUT (Identificador Único)</label>
-                  <div className="relative">
-                    <Fingerprint size={18} className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-500" />
-                    <input 
-                      type="text" 
-                      value={enrollRut}
-                      onChange={(e) => setEnrollRut(e.target.value)}
-                      placeholder="Ej. 12.345.678-9"
-                      className="w-full bg-slate-950/50 border border-slate-700 rounded-xl pl-10 pr-4 py-3 text-white placeholder-slate-600 focus:outline-none focus:border-emerald-500 focus:ring-1 focus:ring-emerald-500 transition-all text-sm"
-                    />
-                  </div>
-                </div>
-
-                {/* Nombre */}
-                <div className="space-y-1.5">
-                  <label className="text-xs font-semibold text-slate-300 uppercase tracking-wider">Nombre y Apellido</label>
-                  <div className="relative">
-                    <Users size={18} className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-500" />
-                    <input 
-                      type="text" 
-                      value={enrollName}
-                      onChange={(e) => setEnrollName(e.target.value)}
-                      placeholder="Ej. María González"
-                      className="w-full bg-slate-950/50 border border-slate-700 rounded-xl pl-10 pr-4 py-3 text-white placeholder-slate-600 focus:outline-none focus:border-emerald-500 focus:ring-1 focus:ring-emerald-500 transition-all text-sm"
-                    />
-                  </div>
-                </div>
-
-                {/* Depto & Torre */}
-                <div className="grid grid-cols-2 gap-3">
-                  <div className="space-y-1.5">
-                    <label className="text-xs font-semibold text-slate-300 uppercase tracking-wider">N° Depto.</label>
-                    <div className="relative">
-                      <Building size={18} className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-500 pointer-events-none" />
-                      <select
-                        value={enrollDepto}
-                        onChange={(e) => setEnrollDepto(e.target.value)}
-                        className="w-full bg-slate-950/50 border border-slate-700 rounded-xl pl-10 pr-4 py-3 text-white focus:outline-none focus:border-emerald-500 focus:ring-1 focus:ring-emerald-500 transition-all text-sm appearance-none cursor-pointer"
-                      >
-                        <option value="" disabled className="text-slate-600">Depto.</option>
-                        {Array.from({ length: 19 }, (_, i) => i + 6).map(num => (
-                          <option key={num} value={num} className="bg-slate-900 text-white">{num}</option>
-                        ))}
-                      </select>
-                    </div>
-                  </div>
-                  <div className="space-y-1.5">
-                    <label className="text-xs font-semibold text-slate-300 uppercase tracking-wider">Torre</label>
-                    <div className="relative">
-                      <Building size={18} className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-500 pointer-events-none" />
-                      <select
-                        value={enrollTorre}
-                        onChange={(e) => setEnrollTorre(e.target.value)}
-                        className="w-full bg-slate-950/50 border border-slate-700 rounded-xl pl-10 pr-4 py-3 text-white focus:outline-none focus:border-emerald-500 focus:ring-1 focus:ring-emerald-500 transition-all text-sm appearance-none cursor-pointer"
-                      >
-                        <option value="" disabled className="text-slate-600">Torre</option>
-                        <option value="8" className="bg-slate-900 text-white">8</option>
-                        <option value="2" className="bg-slate-900 text-white">2</option>
-                        <option value="6" className="bg-slate-900 text-white">6</option>
-                      </select>
-                    </div>
-                  </div>
-                </div>
-
-                {/* Device ID */}
-                <div className="space-y-1.5">
-                  <label className="text-xs font-semibold text-slate-300 uppercase tracking-wider">Dispositivo Telefónico (ID Único)</label>
-                  <div className="relative">
-                    <Smartphone size={18} className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-500" />
-                    <input 
-                      type="text" 
-                      value={enrollDevice}
-                      onChange={(e) => setEnrollDevice(e.target.value)}
-                      placeholder="Ej. iPhone-A1B2C3 / IMEI"
-                      className="w-full bg-slate-950/50 border border-slate-700 rounded-xl pl-10 pr-4 py-3 text-white placeholder-slate-600 focus:outline-none focus:border-emerald-500 focus:ring-1 focus:ring-emerald-500 transition-all text-sm"
-                    />
-                  </div>
-                  <p className="text-[11px] text-slate-500 ml-1">IMEI o identificador único del dispositivo. Solo un dispositivo por residente.</p>
-                </div>
-
-                {/* Feedback */}
-                {enrollMsg && (
-                  <div className={`rounded-xl p-3 text-sm font-medium border ${
-                    enrollMsg.type === 'success' 
-                      ? 'bg-emerald-500/10 text-emerald-400 border-emerald-500/20' 
-                      : 'bg-rose-500/10 text-rose-400 border-rose-500/20'
-                  }`}>
-                    {enrollMsg.text}
-                  </div>
-                )}
-
-                <button
-                  type="submit"
-                  className="w-full bg-gradient-to-r from-emerald-600 to-emerald-500 hover:from-emerald-500 hover:to-emerald-400 text-white font-semibold rounded-xl py-3 flex items-center justify-center gap-2 transition-all active:scale-[0.98] shadow-lg shadow-emerald-500/20 mt-2"
-                >
-                  <Fingerprint size={18} />
-                  Enrolar Residente
-                </button>
-              </form>
-            </div>
-          </div>
-
-          {/* Enrolled Residents List */}
-          <div className="lg:col-span-7">
-            <div className="glass-card rounded-2xl border border-slate-800 overflow-hidden">
-              <div className="p-6 border-b border-slate-800 flex items-center justify-between">
-                <div>
-                  <h2 className="text-lg font-bold text-white">Residentes Enrolados</h2>
-                  <p className="text-xs text-slate-400 mt-0.5">{residents.length} residentes vinculados a dispositivos</p>
-                </div>
-                <div className="flex items-center gap-2 px-3 py-1.5 rounded-full bg-emerald-500/10 border border-emerald-500/20">
-                  <Fingerprint size={14} className="text-emerald-400" />
-                  <span className="text-xs font-medium text-emerald-400">{residents.length} activos</span>
-                </div>
-              </div>
-              
-              <div className="divide-y divide-slate-800/50 max-h-[600px] overflow-auto custom-scrollbar">
-                {residents.map(res => (
-                  <div key={res.id} className="hover:bg-slate-800/20 transition-colors">
-                    <div 
-                      className="p-4 flex items-center justify-between cursor-pointer"
-                      onClick={() => setExpandedResident(expandedResident === res.id ? null : res.id)}
-                    >
-                      <div className="flex items-center gap-3">
-                        <img src={res.avatar} alt="" className="w-10 h-10 rounded-full bg-slate-800 border border-slate-700" />
-                        <div>
-                          <div className="text-sm font-medium text-white">{res.name}</div>
-                          <div className="text-xs text-slate-400">RUT: {res.rut}</div>
-                        </div>
-                      </div>
-                      <div className="flex items-center gap-3">
-                        <div className="text-right hidden sm:block">
-                          <div className="text-xs text-slate-400">Depto. {res.departamento} · Torre {res.torre}</div>
-                          <div className="text-[11px] text-slate-500 flex items-center gap-1 justify-end">
-                            <Smartphone size={10} />
-                            {res.deviceId}
-                          </div>
-                        </div>
-                        {expandedResident === res.id ? <ChevronUp size={16} className="text-slate-500" /> : <ChevronDown size={16} className="text-slate-500" />}
-                      </div>
-                    </div>
-                    
-                    {expandedResident === res.id && (
-                      <div className="px-4 pb-4 animate-in fade-in slide-in-from-top-2 duration-200">
-                        <div className="bg-slate-800/40 rounded-xl p-4 grid grid-cols-2 gap-3 border border-slate-700/30">
-                          <div>
-                            <div className="text-[10px] uppercase text-slate-500 font-medium tracking-wider">RUT</div>
-                            <div className="text-sm text-white font-mono">{res.rut}</div>
-                          </div>
-                          <div>
-                            <div className="text-[10px] uppercase text-slate-500 font-medium tracking-wider">Dispositivo</div>
-                            <div className="text-sm text-white font-mono">{res.deviceId}</div>
-                          </div>
-                          <div>
-                            <div className="text-[10px] uppercase text-slate-500 font-medium tracking-wider">Ubicación</div>
-                            <div className="text-sm text-white">Depto. {res.departamento} · Torre {res.torre}</div>
-                          </div>
-                          <div>
-                            <div className="text-[10px] uppercase text-slate-500 font-medium tracking-wider">Enrolado</div>
-                            <div className="text-sm text-white">
-                              {res.enrolledAt ? format(new Date(res.enrolledAt), "dd/MM/yyyy", { locale: es }) : 'N/A'}
-                            </div>
-                          </div>
-                        </div>
-                      </div>
-                    )}
-                  </div>
+              <div className="w-full bg-slate-800/40 rounded-xl p-4 border border-slate-700/30 grid grid-cols-2 gap-3">
+                {[['ID Residente', `#${qrResult.resident.id}`], ['Nombre', qrResult.resident.name], ['RUT', qrResult.resident.rut], ['Ubicación', `D-${qrResult.resident.departamento} · T-${qrResult.resident.torre}`]].map(([l, v]) => (
+                  <div key={l}><div className="text-[10px] text-slate-500 uppercase tracking-wider">{l}</div><div className="text-sm text-white font-mono mt-0.5 truncate">{v}</div></div>
                 ))}
               </div>
+              <div className="w-full p-3 rounded-xl bg-emerald-500/10 border border-emerald-500/20 flex items-center gap-2 text-xs text-emerald-400">
+                <Check size={14} /> QR válido — Solicitud registrada en log de SuperAdmin
+              </div>
             </div>
           </div>
-        </main>
-      )}
+        ) : (
+          <div className="glass-card rounded-2xl border border-slate-800 p-12 text-center space-y-3">
+            <div className="w-20 h-20 rounded-full bg-slate-800/50 flex items-center justify-center mx-auto"><QrCode size={36} className="text-slate-600" /></div>
+            <p className="text-base font-medium text-slate-400">Seleccione un residente para generar su QR</p>
+            <p className="text-xs text-slate-600">El QR permitirá el ingreso al residente que olvidó su dispositivo.</p>
+          </div>
+        )}
 
-      {/* ===================== GUEST PASSES TAB ===================== */}
-      {activeTab === 'passes' && (
-        <main className="flex-1 p-8 max-w-7xl mx-auto w-full">
-          <div className="glass-card rounded-2xl border border-slate-800 overflow-hidden">
-            <div className="p-6 border-b border-slate-800 flex items-center justify-between">
+        {/* Concierge QR Log */}
+        {conciergeQrLog.length > 0 && (
+          <div className="mt-5 glass-card rounded-2xl border border-slate-800 overflow-hidden">
+            <div className="p-4 border-b border-slate-800">
+              <h4 className="text-xs font-bold text-slate-400 uppercase tracking-wider">Historial de QR por Conserjería ({conciergeQrLog.length})</h4>
+            </div>
+            <div className="divide-y divide-slate-800/60 max-h-48 overflow-auto custom-scrollbar">
+              {conciergeQrLog.slice(0, 8).map((entry) => (
+                <div key={entry.id} className="flex items-center gap-3 p-3">
+                  <div className="w-7 h-7 rounded-lg bg-violet-500/10 flex items-center justify-center text-violet-400 shrink-0"><QrCode size={13} /></div>
+                  <div className="flex-1 min-w-0">
+                    <div className="text-xs font-medium text-white truncate">{entry.residentName}</div>
+                    <div className="text-[10px] text-slate-500">{formatDistanceToNow(new Date(entry.time), { addSuffix: true, locale: es })}</div>
+                  </div>
+                  <span className="font-mono text-[10px] text-violet-400 bg-violet-500/10 px-1.5 py-0.5 rounded">{entry.id}</span>
+                </div>
+              ))}
+            </div>
+          </div>
+        )}
+      </div>
+    </div>
+  );
+};
+
+// ─── Guest Passes Tab ──────────────────────────────────────────────────────────
+const GuestPassTab = ({ guestPasses, generateGuestPass }) => {
+  const [guestName, setGuestName] = useState('');
+  const [activePass, setActivePass] = useState(null);
+  const activePasses = guestPasses.filter((p) => p.status === 'active' && new Date(p.expires) > new Date());
+
+  const handleCreate = (e) => {
+    e.preventDefault();
+    if (!guestName.trim()) return;
+    const pass = generateGuestPass(guestName, null, 'concierge');
+    setActivePass(pass);
+    setGuestName('');
+  };
+
+  return (
+    <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
+      <div>
+        <h2 className="text-lg font-bold text-white flex items-center gap-2 mb-4"><Ticket size={18} className="text-violet-400" /> Crear Pase de Visita</h2>
+        <div className="glass-card rounded-2xl border border-slate-800 overflow-hidden">
+          <form onSubmit={handleCreate} className="p-6 space-y-4">
+            <div>
+              <label className="text-xs font-semibold text-slate-400 uppercase tracking-wider mb-1.5 block">Nombre del Visitante</label>
+              <input type="text" value={guestName} onChange={(e) => setGuestName(e.target.value)} placeholder="Ej. Juan Pérez"
+                className="w-full bg-slate-950/60 border border-slate-700 rounded-xl px-4 py-3 text-white placeholder-slate-600 focus:outline-none focus:border-violet-500 focus:ring-1 focus:ring-violet-500 transition-all text-sm" />
+            </div>
+            <button type="submit" disabled={!guestName.trim()}
+              className="w-full bg-gradient-to-r from-violet-600 to-indigo-600 hover:from-violet-500 hover:to-indigo-500 disabled:opacity-40 text-white font-semibold rounded-xl py-3 flex items-center justify-center gap-2 transition-all active:scale-[0.98]">
+              <QrCode size={18} /> Generar Pase QR
+            </button>
+          </form>
+        </div>
+
+        {/* Active Passes List */}
+        <div className="mt-5">
+          <h3 className="text-xs font-semibold text-slate-500 uppercase tracking-wider mb-3">Pases Activos ({activePasses.length})</h3>
+          <div className="space-y-2">
+            {activePasses.map((p) => (
+              <div key={p.id} className="flex items-center gap-3 p-3 rounded-xl bg-slate-800/40 border border-slate-800 hover:border-violet-500/20 transition-colors">
+                <div className="w-8 h-8 rounded-xl bg-violet-500/10 flex items-center justify-center text-violet-400 shrink-0"><Ticket size={15} /></div>
+                <div className="flex-1 min-w-0">
+                  <div className="text-sm font-medium text-white truncate">{p.guestName}</div>
+                  <div className="text-xs text-slate-500">Creado por {p.createdBy?.name || 'Conserjería'}</div>
+                </div>
+                <span className="text-[10px] font-mono text-violet-400 bg-violet-500/10 border border-violet-500/20 px-2 py-1 rounded">{p.id}</span>
+              </div>
+            ))}
+            {activePasses.length === 0 && <div className="text-center text-slate-600 text-sm py-6">No hay pases activos.</div>}
+          </div>
+        </div>
+      </div>
+
+      {/* Generated QR */}
+      <div>
+        {activePass ? (
+          <div className="glass-card rounded-2xl border border-violet-500/25 overflow-hidden animate-in fade-in zoom-in-95">
+            <div className="p-5 border-b border-violet-500/20 bg-gradient-to-r from-violet-500/10 to-transparent flex items-center justify-between">
               <div>
-                <h2 className="text-lg font-bold text-white flex items-center gap-2">
-                  <Ticket size={20} className="text-violet-400" />
-                  Pases de Visita Generados por Residentes
-                </h2>
-                <p className="text-xs text-slate-400 mt-1">Todos los QR de visita creados por residentes quedan registrados aquí.</p>
+                <h3 className="text-base font-bold text-white">Pase Generado</h3>
+                <p className="text-xs text-slate-400 mt-0.5">Para {activePass.guestName}</p>
               </div>
-              <div className="flex items-center gap-3">
-                <span className="px-3 py-1.5 rounded-full text-xs font-medium bg-emerald-500/10 text-emerald-400 border border-emerald-500/20">
-                  {activePasses.length} activos
-                </span>
-                <span className="px-3 py-1.5 rounded-full text-xs font-medium bg-slate-700/50 text-slate-400 border border-slate-600/50">
-                  {guestPasses.length} totales
-                </span>
+              <button onClick={() => setActivePass(null)} className="w-7 h-7 rounded-lg bg-slate-800 flex items-center justify-center text-slate-400 hover:text-white transition-colors"><X size={14} /></button>
+            </div>
+            <div className="p-6 flex flex-col items-center gap-5">
+              <div className="bg-white p-5 rounded-2xl shadow-xl">
+                <QRCodeSVG value={JSON.stringify({ type: 'GUEST_PASS', id: activePass.id, guest: activePass.guestName, expires: activePass.expires, issuedBy: 'Conserjería' })} size={180} level="H" bgColor="#ffffff" fgColor="#0f172a" />
+              </div>
+              <div className="w-full bg-slate-800/40 rounded-xl p-4 border border-slate-700/30 space-y-2">
+                {[['ID Pase', activePass.id], ['Visitante', activePass.guestName], ['Válido hasta', format(new Date(activePass.expires), "dd/MM/yy HH:mm")]].map(([l, v]) => (
+                  <div key={l} className="flex items-center justify-between">
+                    <span className="text-[10px] text-slate-500 uppercase tracking-wider">{l}</span>
+                    <span className="text-xs text-white font-mono">{v}</span>
+                  </div>
+                ))}
               </div>
             </div>
-            
-            <div className="overflow-auto">
-              <table className="w-full text-left border-collapse">
-                <thead>
-                  <tr className="bg-slate-800/30">
-                    <th className="py-3 px-5 text-xs font-medium text-slate-400 uppercase tracking-wider">ID Pase</th>
-                    <th className="py-3 px-5 text-xs font-medium text-slate-400 uppercase tracking-wider">Visitante</th>
-                    <th className="py-3 px-5 text-xs font-medium text-slate-400 uppercase tracking-wider">Creado Por</th>
-                    <th className="py-3 px-5 text-xs font-medium text-slate-400 uppercase tracking-wider">RUT Residente</th>
-                    <th className="py-3 px-5 text-xs font-medium text-slate-400 uppercase tracking-wider">Ubicación</th>
-                    <th className="py-3 px-5 text-xs font-medium text-slate-400 uppercase tracking-wider">Creado</th>
-                    <th className="py-3 px-5 text-xs font-medium text-slate-400 uppercase tracking-wider">Expira</th>
-                    <th className="py-3 px-5 text-xs font-medium text-slate-400 uppercase tracking-wider text-right">Estado</th>
-                  </tr>
-                </thead>
-                <tbody className="divide-y divide-slate-800/50">
-                  {guestPasses.map((pass) => {
-                    const isExpired = new Date(pass.expires) < new Date();
-                    const statusLabel = isExpired ? 'Expirado' : pass.status === 'used' ? 'Usado' : 'Activo';
-                    const statusClass = isExpired 
-                      ? 'bg-slate-600/10 text-slate-400 border-slate-600/20' 
-                      : pass.status === 'used' 
-                        ? 'bg-amber-500/10 text-amber-400 border-amber-500/20' 
-                        : 'bg-emerald-500/10 text-emerald-400 border-emerald-500/20';
-                    
-                    return (
-                      <tr key={pass.id} className="hover:bg-slate-800/30 transition-colors">
-                        <td className="py-3 px-5">
-                          <span className="font-mono text-sm text-violet-400 bg-violet-500/10 px-2 py-0.5 rounded">{pass.id}</span>
-                        </td>
-                        <td className="py-3 px-5 text-sm font-medium text-white">{pass.guestName}</td>
-                        <td className="py-3 px-5 text-sm text-slate-300">{pass.createdBy.name}</td>
-                        <td className="py-3 px-5 text-sm text-slate-400 font-mono">{pass.createdBy.rut}</td>
-                        <td className="py-3 px-5 text-xs text-slate-400">
-                          Depto. {pass.createdBy.departamento} · Torre {pass.createdBy.torre}
-                        </td>
-                        <td className="py-3 px-5 text-xs text-slate-400">
-                          {formatDistanceToNow(new Date(pass.createdAt), { addSuffix: true, locale: es })}
-                        </td>
-                        <td className="py-3 px-5 text-xs text-slate-400">
-                          {format(new Date(pass.expires), "dd/MM HH:mm", { locale: es })}
-                        </td>
-                        <td className="py-3 px-5 text-right">
-                          <span className={`inline-flex items-center gap-1 px-2.5 py-1 rounded-full text-xs font-medium border ${statusClass}`}>
-                            {statusLabel}
-                          </span>
-                        </td>
-                      </tr>
-                    );
-                  })}
-                  {guestPasses.length === 0 && (
-                    <tr>
-                      <td colSpan="8" className="py-12 text-center text-slate-500">
-                        <Ticket size={32} className="mx-auto mb-2 opacity-30" />
-                        No hay pases de visita registrados.
-                      </td>
-                    </tr>
-                  )}
-                </tbody>
-              </table>
+          </div>
+        ) : (
+          <div className="glass-card rounded-2xl border border-slate-800 p-12 text-center space-y-3">
+            <div className="w-20 h-20 rounded-full bg-slate-800/50 flex items-center justify-center mx-auto"><Ticket size={36} className="text-slate-600" /></div>
+            <p className="text-base font-medium text-slate-400">Crea un pase de visita para ver el QR</p>
+          </div>
+        )}
+      </div>
+    </div>
+  );
+};
+
+// ─── Enrollment Tab (Step Form) ───────────────────────────────────────────────
+const STEPS = ['Identidad', 'Ubicación', 'Vehículo'];
+const EnrollTab = ({ enrollResident, residents }) => {
+  const [step, setStep] = useState(0);
+  const [form, setForm] = useState({ rut: '', name: '', departamento: '', torre: '', deviceId: '', patente: '', vehiculo: '' });
+  const [msg, setMsg] = useState(null);
+  const set = (f) => (e) => setForm((p) => ({ ...p, [f]: e.target.value }));
+  const inputCls = "w-full bg-slate-950/60 border border-slate-700 rounded-xl pl-10 pr-4 py-3 text-white placeholder-slate-600 focus:outline-none focus:border-violet-500 focus:ring-1 focus:ring-violet-500 transition-all text-sm";
+  const selCls = "w-full bg-slate-950/60 border border-slate-700 rounded-xl pl-10 pr-4 py-3 text-white focus:outline-none focus:border-violet-500 transition-all text-sm appearance-none cursor-pointer";
+  const lbl = "text-xs font-semibold text-slate-400 uppercase tracking-wider mb-1.5 block";
+
+  const handleNext = () => {
+    if (step === 0 && (!form.rut.trim() || !form.name.trim())) { setMsg({ type: 'error', text: 'RUT y Nombre son obligatorios.' }); return; }
+    if (step === 1 && (!form.departamento || !form.torre)) { setMsg({ type: 'error', text: 'Departamento y Torre son obligatorios.' }); return; }
+    setMsg(null); setStep((s) => s + 1);
+  };
+
+  const handleSubmit = async () => {
+    const result = enrollResident({ rut: form.rut.trim(), name: form.name.trim(), departamento: form.departamento, torre: form.torre, deviceId: form.deviceId.trim() || undefined, patente: form.patente || null, vehiculo: form.vehiculo || null });
+    if (result.success) { setMsg({ type: 'success', text: `✓ ${result.resident.name} enrolado correctamente.` }); setForm({ rut: '', name: '', departamento: '', torre: '', deviceId: '', patente: '', vehiculo: '' }); setStep(0); }
+    else setMsg({ type: 'error', text: result.message });
+  };
+
+  return (
+    <div className="max-w-xl mx-auto">
+      <div className="flex items-center gap-0 mb-8">
+        {STEPS.map((s, i) => (
+          <React.Fragment key={s}>
+            <div className={clsx('flex items-center gap-2 px-3 py-1.5 rounded-xl transition-all', i === step ? 'bg-violet-500/20 border border-violet-500/40' : 'opacity-40')}>
+              <div className={clsx('w-6 h-6 rounded-lg flex items-center justify-center text-xs font-bold border shrink-0', i < step ? 'bg-emerald-500 border-emerald-400 text-white' : i === step ? 'bg-violet-500 border-violet-400 text-white' : 'bg-slate-800 border-slate-700 text-slate-500')}>
+                {i < step ? <Check size={12} /> : i + 1}
+              </div>
+              <span className={clsx('text-xs font-semibold', i === step ? 'text-white' : 'text-slate-500')}>{s}</span>
             </div>
-          </div>
-        </main>
-      )}
+            {i < STEPS.length - 1 && <div className={clsx('flex-1 h-px mx-1', i < step ? 'bg-violet-500/50' : 'bg-slate-800')} />}
+          </React.Fragment>
+        ))}
+      </div>
 
-      {/* ===================== QR GENERATOR TAB ===================== */}
-      {activeTab === 'qrgen' && (
-        <main className="flex-1 p-8 max-w-7xl mx-auto w-full grid grid-cols-1 lg:grid-cols-2 gap-8">
-          
-          {/* Search by RUT */}
-          <div className="glass-card rounded-2xl border border-slate-800 overflow-hidden self-start">
-            <div className="p-6 border-b border-slate-800 bg-gradient-to-r from-blue-500/5 to-transparent">
-              <h2 className="text-lg font-bold text-white flex items-center gap-2">
-                <QrCode size={20} className="text-blue-400" />
-                Generar QR por RUT
-              </h2>
-              <p className="text-xs text-slate-400 mt-1">Busque un residente por su RUT para generar su código QR de acceso personal.</p>
+      <div className="glass-card rounded-2xl border border-slate-800 overflow-hidden">
+        <div className="p-5 space-y-4">
+          {step === 0 && (<>
+            <div><label className={lbl}>RUT / DNI</label><div className="relative"><Fingerprint size={18} className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-500" /><input type="text" value={form.rut} onChange={set('rut')} placeholder="Ej. 12.345.678-9" className={inputCls} /></div></div>
+            <div><label className={lbl}>Nombre y Apellido</label><div className="relative"><Users size={18} className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-500" /><input type="text" value={form.name} onChange={set('name')} placeholder="Ej. María González" className={inputCls} /></div></div>
+            <div><label className={lbl}>Dispositivo / IMEI <span className="text-slate-600 normal-case font-normal">(Opcional)</span></label><div className="relative"><Smartphone size={18} className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-500" /><input type="text" value={form.deviceId} onChange={set('deviceId')} placeholder="Ej. iPhone-A1B2C3" className={inputCls} /></div></div>
+          </>)}
+          {step === 1 && (
+            <div className="grid grid-cols-2 gap-4">
+              <div><label className={lbl}>N° Departamento</label><div className="relative"><Building size={18} className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-500 pointer-events-none" /><select value={form.departamento} onChange={set('departamento')} className={selCls}><option value="" disabled>Seleccionar...</option>{Array.from({length:19},(_,i)=>i+6).map((n)=><option key={n} value={n} className="bg-slate-900">{n}</option>)}</select></div></div>
+              <div><label className={lbl}>N° Torre</label><div className="relative"><Building size={18} className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-500 pointer-events-none" /><select value={form.torre} onChange={set('torre')} className={selCls}><option value="" disabled>Seleccionar...</option>{[8,2,6].map((t)=><option key={t} value={t} className="bg-slate-900">{t}</option>)}</select></div></div>
             </div>
-            
-            <form onSubmit={handleQrSearch} className="p-6 space-y-4">
-              <div className="space-y-1.5">
-                <label className="text-xs font-semibold text-slate-300 uppercase tracking-wider">RUT del Residente</label>
-                <div className="relative">
-                  <Search size={18} className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-500" />
-                  <input 
-                    type="text" 
-                    value={qrRutSearch}
-                    onChange={(e) => { setQrRutSearch(e.target.value); setQrResult(null); }}
-                    placeholder="Ej. 12.345.678-9"
-                    className="w-full bg-slate-950/50 border border-slate-700 rounded-xl pl-10 pr-4 py-3 text-white placeholder-slate-600 focus:outline-none focus:border-blue-500 focus:ring-1 focus:ring-blue-500 transition-all text-sm font-mono"
-                  />
-                </div>
-              </div>
+          )}
+          {step === 2 && (<>
+            <div className="p-3 rounded-xl bg-violet-500/5 border border-violet-500/20 text-xs text-violet-300/80 flex items-start gap-2"><Car size={13} className="shrink-0 mt-0.5" />Información de vehículo es opcional.</div>
+            <div><label className={lbl}>Patente / Placa</label><div className="relative"><Car size={18} className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-500" /><input type="text" value={form.patente} onChange={set('patente')} placeholder="Ej. AB-1234" className={inputCls} /></div></div>
+            <div><label className={lbl}>Modelo del Vehículo</label><div className="relative"><Car size={18} className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-500" /><input type="text" value={form.vehiculo} onChange={set('vehiculo')} placeholder="Ej. Toyota Corolla 2022" className={inputCls} /></div></div>
+          </>)}
+          {msg && <div className={clsx('rounded-xl px-4 py-3 text-sm font-medium border flex items-center gap-2', msg.type === 'success' ? 'bg-emerald-500/10 text-emerald-400 border-emerald-500/20' : 'bg-rose-500/10 text-rose-400 border-rose-500/20')}>{msg.type==='success'?<Check size={14}/>:<AlertCircle size={14}/>}{msg.text}</div>}
+        </div>
+        <div className="px-5 pb-5 flex gap-3">
+          {step > 0 && <button onClick={() => setStep((s) => s - 1)} className="flex-1 bg-slate-800 hover:bg-slate-700 border border-slate-700 text-slate-300 font-medium rounded-xl py-3 transition-all text-sm">← Atrás</button>}
+          {step < STEPS.length - 1 ? <button onClick={handleNext} className="flex-1 bg-violet-600 hover:bg-violet-500 text-white font-semibold rounded-xl py-3 transition-all text-sm">Continuar →</button>
+            : <button onClick={handleSubmit} className="flex-1 bg-gradient-to-r from-violet-600 to-indigo-600 hover:from-violet-500 hover:to-indigo-500 text-white font-semibold rounded-xl py-3 transition-all text-sm flex items-center justify-center gap-2"><Fingerprint size={16}/>Enrolar Residente</button>}
+        </div>
+      </div>
+    </div>
+  );
+};
 
-              <button
-                type="submit"
-                className="w-full bg-gradient-to-r from-blue-600 to-blue-500 hover:from-blue-500 hover:to-blue-400 text-white font-semibold rounded-xl py-3 flex items-center justify-center gap-2 transition-all active:scale-[0.98] shadow-lg shadow-blue-500/20"
-              >
-                <Search size={18} />
-                Buscar y Generar QR
-              </button>
+// ─── Sidebar Icons Config ─────────────────────────────────────────────────────
+const SIDEBAR_ITEMS = [
+  { id: 'monitor', icon: Activity, label: 'Monitor' },
+  { id: 'gate', icon: Unlock, label: 'Reja' },
+  { id: 'qrresident', icon: QrCode, label: 'QR Residente' },
+  { id: 'passes', icon: Ticket, label: 'Pases Visita' },
+];
 
-              {/* Quick select existing residents */}
-              <div className="pt-2">
-                <p className="text-[11px] text-slate-500 uppercase tracking-wider font-medium mb-2">Selección Rápida</p>
-                <div className="space-y-1.5">
-                  {residents.map(res => (
-                    <button
-                      key={res.id}
-                      type="button"
-                      onClick={() => { setQrRutSearch(res.rut); setQrResult(null); }}
-                      className="w-full text-left px-3 py-2 rounded-lg hover:bg-slate-800/50 transition-colors flex items-center justify-between group"
-                    >
-                      <div className="flex items-center gap-2">
-                        <img src={res.avatar} alt="" className="w-6 h-6 rounded-full bg-slate-800" />
-                        <span className="text-xs text-slate-300 group-hover:text-white transition-colors">{res.name}</span>
-                      </div>
-                      <span className="text-[11px] text-slate-500 font-mono">{res.rut}</span>
-                    </button>
-                  ))}
-                </div>
-              </div>
-            </form>
-          </div>
+const NAV_SECTIONS = [
+  {
+    title: 'Monitoreo en Vivo',
+    items: [{ id: 'monitor', label: 'Monitor ENTRADAS/SALIDAS', icon: Activity }],
+  },
+  {
+    title: 'Control Físico',
+    items: [{ id: 'gate', label: 'Abrir Reja Principal', icon: Unlock }],
+  },
+  {
+    title: 'Gestión Temporal',
+    items: [
+      { id: 'qrresident', label: 'QR para Residentes', icon: QrCode },
+      { id: 'passes', label: 'Pases de Visitas', icon: Ticket },
+    ],
+  },
+];
 
-          {/* QR Result */}
-          <div className="self-start">
-            {qrResult && qrResult.success && (
-              <div className="glass-card rounded-2xl border border-slate-800 overflow-hidden animate-in fade-in zoom-in-95 duration-300">
-                <div className="p-6 border-b border-slate-800 bg-gradient-to-r from-emerald-500/5 to-blue-500/5">
-                  <h2 className="text-lg font-bold text-white">QR de Acceso Generado</h2>
-                  <p className="text-xs text-slate-400 mt-0.5">Código válido para {qrResult.resident.name}</p>
-                </div>
-                
-                <div className="p-6 flex flex-col items-center space-y-6">
-                  {/* QR Code */}
-                  <div className="bg-white p-5 rounded-2xl shadow-xl shadow-emerald-500/10">
-                    <QRCodeSVG 
-                      value={JSON.stringify(qrResult.qrData)}
-                      size={200}
-                      level="H"
-                      includeMargin={false}
-                      bgColor="#ffffff"
-                      fgColor="#0f172a"
-                    />
-                  </div>
+// ─── Main AdminDashboard ──────────────────────────────────────────────────────
+const AdminDashboard = () => {
+  const { logout, accessHistory, residents, guestPasses, generateGuestPass,
+    gateState, openGate, conciergeQrLog, addConciergeQrRequest, generateResidentQR } = useAppContext();
+  
+  const [activeTab, setActiveTab] = useState('monitor');
+  const [openTabs, setOpenTabs] = useState(['monitor']);
 
-                  {/* Resident Info */}
-                  <div className="w-full bg-slate-800/40 rounded-xl p-4 border border-slate-700/30 space-y-3">
-                    <div className="grid grid-cols-2 gap-3">
-                      <div>
-                        <div className="text-[10px] uppercase text-slate-500 font-medium tracking-wider">Nombre</div>
-                        <div className="text-sm text-white font-medium">{qrResult.resident.name}</div>
-                      </div>
-                      <div>
-                        <div className="text-[10px] uppercase text-slate-500 font-medium tracking-wider">RUT</div>
-                        <div className="text-sm text-white font-mono">{qrResult.resident.rut}</div>
-                      </div>
-                      <div>
-                        <div className="text-[10px] uppercase text-slate-500 font-medium tracking-wider">Ubicación</div>
-                        <div className="text-sm text-white">Depto. {qrResult.resident.departamento} · Torre {qrResult.resident.torre}</div>
-                      </div>
-                      <div>
-                        <div className="text-[10px] uppercase text-slate-500 font-medium tracking-wider">Dispositivo</div>
-                        <div className="text-sm text-white font-mono text-[13px]">{qrResult.resident.deviceId}</div>
-                      </div>
-                    </div>
-                    <div className="pt-2 border-t border-slate-700/30 flex items-center justify-between">
-                      <div className="flex items-center gap-1.5 text-emerald-400">
-                        <Check size={14} />
-                        <span className="text-xs font-medium">Verificado y Enrolado</span>
-                      </div>
-                      <span className="text-[11px] text-slate-500">
-                        ID: {qrResult.qrData.id}
-                      </span>
-                    </div>
-                  </div>
-                </div>
-              </div>
+  const openTab = (id) => {
+    if (!openTabs.includes(id)) setOpenTabs((t) => [...t, id]);
+    setActiveTab(id);
+  };
+
+  return (
+    <div className="flex h-screen bg-[#0b0f1a] overflow-hidden">
+      {/* ── Icon Sidebar ── */}
+      <aside className="w-[58px] bg-[#0d1117] border-r border-slate-800/80 flex flex-col items-center py-4 gap-1 shrink-0 z-30">
+        <div className="w-9 h-9 rounded-xl bg-gradient-to-br from-violet-500 to-indigo-600 flex items-center justify-center mb-4 shadow-lg shadow-violet-500/30">
+          <ShieldAlert size={18} className="text-white" />
+        </div>
+
+        {SIDEBAR_ITEMS.map(({ id, icon: Icon, label }) => (
+          <button
+            key={id}
+            onClick={() => openTab(id)}
+            title={label}
+            className={clsx(
+              'w-9 h-9 rounded-xl flex items-center justify-center transition-all duration-200 relative group',
+              activeTab === id
+                ? 'bg-violet-500/20 text-violet-400'
+                : 'text-slate-600 hover:text-slate-300 hover:bg-slate-800/60'
             )}
-            
-            {qrResult && !qrResult.success && (
-              <div className="glass-card rounded-2xl border border-rose-500/20 overflow-hidden animate-in fade-in zoom-in-95 duration-300">
-                <div className="p-8 text-center space-y-3">
-                  <div className="w-16 h-16 rounded-full bg-rose-500/10 flex items-center justify-center mx-auto">
-                    <X size={32} className="text-rose-400" />
-                  </div>
-                  <h3 className="text-lg font-bold text-white">RUT No Encontrado</h3>
-                  <p className="text-sm text-slate-400">{qrResult.message}</p>
-                  <p className="text-xs text-slate-500">Verifique que el residente esté enrolado en el sistema.</p>
-                </div>
-              </div>
-            )}
+          >
+            <Icon size={18} />
+            {id === 'gate' && gateState === 'open' && <span className="absolute top-1 right-1 w-2 h-2 rounded-full bg-emerald-400 animate-pulse" />}
+            <span className="absolute left-full ml-2 px-2 py-1 rounded-lg bg-slate-800 text-slate-200 text-xs font-medium whitespace-nowrap opacity-0 group-hover:opacity-100 pointer-events-none transition-opacity z-50 border border-slate-700">
+              {label}
+            </span>
+          </button>
+        ))}
 
-            {!qrResult && (
-              <div className="glass-card rounded-2xl border border-slate-800 overflow-hidden">
-                <div className="p-12 text-center space-y-3">
-                  <div className="w-20 h-20 rounded-full bg-slate-800/50 flex items-center justify-center mx-auto">
-                    <QrCode size={36} className="text-slate-600" />
-                  </div>
-                  <h3 className="text-base font-medium text-slate-400">Ingrese un RUT para generar el QR</h3>
-                  <p className="text-xs text-slate-500">El código QR contendrá los datos del residente verificado.</p>
-                </div>
-              </div>
-            )}
-          </div>
-        </main>
-      )}
+        <div className="mt-auto flex flex-col items-center gap-1">
+          <button onClick={logout} title="Cerrar Sesión"
+            className="w-9 h-9 rounded-xl flex items-center justify-center text-slate-600 hover:text-rose-400 hover:bg-rose-500/10 transition-all">
+            <LogOut size={16} />
+          </button>
+        </div>
+      </aside>
 
-      {/* VexCorp Copyright Footer */}
-      <footer className="py-4 px-8 border-t border-slate-800 text-center bg-slate-900/80 backdrop-blur-sm mt-auto">
-        <p className="text-[11px] text-slate-500 font-medium tracking-wide">
-          © {new Date().getFullYear()} VexCorp. Todos los derechos reservados.
-        </p>
-        <p className="text-[10px] text-slate-600 mt-0.5">
-          VexWard® es un producto desarrollado y propiedad de VexCorp.
-        </p>
-      </footer>
+      {/* ── Navigation Tree Panel ── */}
+      <nav className="w-[220px] bg-[#0f1520] border-r border-slate-800/80 flex flex-col shrink-0 overflow-auto custom-scrollbar">
+        <div className="px-4 py-4 border-b border-slate-800/60">
+          <div className="text-xs font-bold text-white tracking-widest uppercase">Conserjería</div>
+          <div className="text-[10px] text-slate-500 mt-0.5">VexWard Central</div>
+        </div>
+
+        <div className="flex-1 py-3 space-y-5 px-2">
+          {NAV_SECTIONS.map((section) => (
+            <div key={section.title}>
+              <div className="px-2 mb-1.5 text-[9px] font-bold text-slate-600 uppercase tracking-[0.15em]">
+                {section.title}
+              </div>
+              <div className="space-y-0.5">
+                {section.items.map(({ id, label, icon: Icon }) => (
+                  <button
+                    key={id}
+                    onClick={() => openTab(id)}
+                    className={clsx(
+                      'w-full flex items-center gap-2.5 px-3 py-2 rounded-xl text-xs font-medium transition-all duration-150 text-left',
+                      activeTab === id
+                        ? 'bg-violet-500/20 text-violet-300 border border-violet-500/20'
+                        : 'text-slate-500 hover:text-slate-200 hover:bg-slate-800/50'
+                    )}
+                  >
+                    <Icon size={13} className={activeTab === id ? 'text-violet-400' : ''} />
+                    <span className="flex-1 truncate">{label}</span>
+                    {id === 'gate' && gateState === 'open' && <span className="w-1.5 h-1.5 rounded-full bg-emerald-400 animate-pulse shrink-0" />}
+                    {activeTab === id && <ChevronDown size={11} className="text-violet-400 shrink-0 -rotate-90" />}
+                  </button>
+                ))}
+              </div>
+            </div>
+          ))}
+        </div>
+      </nav>
+
+      {/* ── Content ── */}
+      <main className="flex-1 bg-[#0b0f1a] flex flex-col min-w-0 overflow-hidden relative">
+        <div className="flex-1 overflow-auto custom-scrollbar p-6 lg:p-8">
+          {activeTab === 'monitor' && (
+            <div className="flex flex-col gap-4 h-full">
+              <div className="flex items-center justify-between mb-2 shrink-0">
+                <div>
+                  <h1 className="text-xl font-bold text-white">Monitor de Accesos en Vivo</h1>
+                  <p className="text-sm text-slate-500 mt-0.5">Registro en tiempo real de entradas y salidas del condominio.</p>
+                </div>
+                <span className="flex items-center gap-1.5 text-xs text-emerald-400 bg-emerald-500/10 border border-emerald-500/20 px-3 py-1.5 rounded-xl font-semibold"><span className="w-1.5 h-1.5 rounded-full bg-emerald-500 animate-pulse" />En Vivo</span>
+              </div>
+              <div className="flex-1 min-h-0">
+                <LiveMonitor accessHistory={accessHistory} />
+              </div>
+            </div>
+          )}
+
+          {activeTab === 'gate' && <GatePanel gateState={gateState} openGate={openGate} accessHistory={accessHistory} />}
+          {activeTab === 'qrresident' && <ResidentQRPanel residents={residents} generateResidentQR={generateResidentQR} addConciergeQrRequest={addConciergeQrRequest} conciergeQrLog={conciergeQrLog} />}
+          {activeTab === 'passes' && <GuestPassTab guestPasses={guestPasses} generateGuestPass={generateGuestPass} />}
+        </div>
+
+        {/* Status bar */}
+        <div className="h-7 bg-[#0d1117] border-t border-slate-800/60 flex items-center px-4 gap-4 shrink-0">
+          <span className="text-[10px] text-slate-600">Conserjería Central</span>
+          <span className="text-[10px] text-slate-700">|</span>
+          <span className="text-[10px] text-emerald-500 flex items-center gap-1.5"><span className="w-1.5 h-1.5 rounded-full bg-emerald-500 animate-pulse" /> Sistema Activo</span>
+          <span className="ml-auto text-[10px] text-slate-700">© {new Date().getFullYear()} VexCorp</span>
+        </div>
+      </main>
     </div>
   );
 };
