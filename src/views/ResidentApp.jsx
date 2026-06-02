@@ -3,7 +3,7 @@ import { useAppContext } from '../context/AppContext';
 import {
   LogOut, Unlock, UserPlus, History, X, QrCode, Fingerprint,
   ArrowDownLeft, ArrowUpRight, AlertTriangle, ShieldAlert,
-  Check, Clock, Home, Bell, ChevronRight
+  Check, Clock, Home, Bell, ChevronRight, User
 } from 'lucide-react';
 import clsx from 'clsx';
 import { format, formatDistanceToNow } from 'date-fns';
@@ -162,8 +162,9 @@ const ResidentApp = () => {
             </div>
           </div>
           <div className="flex items-center gap-2">
-            <button onClick={logout} className="w-9 h-9 rounded-xl bg-slate-800/60 flex items-center justify-center text-slate-400 hover:text-white hover:bg-slate-700 transition-all active:scale-95">
-              <LogOut size={16} />
+            <button className="relative w-9 h-9 rounded-xl bg-slate-800/60 flex items-center justify-center text-slate-400 hover:text-white hover:bg-slate-700 transition-all active:scale-95">
+              <Bell size={16} />
+              <span className="absolute top-2 right-2.5 w-2 h-2 bg-red-500 rounded-full border-2 border-[#0f1117]"></span>
             </button>
           </div>
         </header>
@@ -342,38 +343,86 @@ const ResidentApp = () => {
               </div>
             </div>
           )}
+
+          {/* PERFIL TAB */}
+          {activeTab === 'profile' && (
+            <div className="px-5 pt-8 space-y-6 animate-in slide-in-from-bottom-4 duration-300 pb-20">
+              <div className="text-center space-y-4">
+                <div className="relative inline-block">
+                  <img src={activeUser?.avatar} alt={activeUser?.name} className="w-28 h-28 rounded-full border-4 border-slate-800 shadow-xl object-cover" />
+                  <div className="absolute bottom-1 right-1 w-6 h-6 rounded-full bg-emerald-500 border-4 border-[#0f1117]" />
+                </div>
+                <div>
+                  <h2 className="text-2xl font-black text-white">{activeUser?.name}</h2>
+                  <p className="text-slate-400 text-sm mt-1">{activeUser?.email || 'residente@vexward.com'}</p>
+                </div>
+              </div>
+
+              <div className="bg-slate-800/30 rounded-3xl p-5 border border-slate-700/50 space-y-4">
+                <div className="flex justify-between items-center py-2 border-b border-slate-700/50">
+                  <span className="text-sm text-slate-400">Departamento</span>
+                  <span className="text-base font-bold text-white">{activeUser?.departamento || 'N/A'}</span>
+                </div>
+                <div className="flex justify-between items-center py-2 border-b border-slate-700/50">
+                  <span className="text-sm text-slate-400">Torre</span>
+                  <span className="text-base font-bold text-white">{activeUser?.torre || 'N/A'}</span>
+                </div>
+                <div className="flex justify-between items-center py-2">
+                  <span className="text-sm text-slate-400">RUT</span>
+                  <span className="text-sm font-mono text-slate-300">{activeUser?.rut || 'N/A'}</span>
+                </div>
+              </div>
+
+              <button onClick={logout} className="w-full bg-red-500/10 hover:bg-red-500/20 border border-red-500/20 text-red-400 font-bold rounded-2xl px-4 py-4 transition-all active:scale-[0.98] shadow-lg flex justify-center items-center gap-2 mt-4 text-base">
+                <LogOut size={20} /> Cerrar Sesión
+              </button>
+            </div>
+          )}
         </main>
 
         {/* ── Bottom Navigation ── */}
-        <nav className="fixed bottom-0 left-1/2 -translate-x-1/2 w-full max-w-md bg-[#0f1117]/95 backdrop-blur-xl border-t border-slate-800/80 px-2 pt-3 pb-safe-bottom z-20" style={{ paddingBottom: 'max(16px, env(safe-area-inset-bottom))' }}>
-          <div className="flex justify-around items-end">
+        <nav className="fixed bottom-0 left-1/2 -translate-x-1/2 w-full max-w-md bg-[#0f1117]/95 backdrop-blur-xl border-t border-slate-800/80 z-20" style={{ paddingBottom: 'max(16px, env(safe-area-inset-bottom))' }}>
+          <div className="relative flex items-center h-[76px] px-2">
+            
+            {/* Left Items (Historial & Visitas) */}
+            <div className="flex-1 flex justify-evenly items-center">
+              <button onClick={() => setActiveTab('history')} className={clsx('flex flex-col items-center gap-1.5 transition-all w-14', activeTab === 'history' ? 'text-violet-400' : 'text-slate-500 hover:text-slate-300')}>
+                <History size={24} />
+                <span className="text-[10px] font-medium">Historial</span>
+              </button>
 
-            {/* Historial */}
-            <button onClick={() => setActiveTab('history')} className={clsx('flex flex-col items-center gap-1.5 px-3 py-1 rounded-xl transition-all min-w-[56px]', activeTab === 'history' ? 'text-violet-400' : 'text-slate-600 hover:text-slate-400')}>
-              <History size={22} />
-              <span className="text-[10px] font-semibold">Historial</span>
-            </button>
+              <button onClick={() => setActiveTab('guests')} className={clsx('flex flex-col items-center gap-1.5 transition-all w-14', activeTab === 'guests' ? 'text-violet-400' : 'text-slate-500 hover:text-slate-300')}>
+                <UserPlus size={24} />
+                <span className="text-[10px] font-medium">Visitas</span>
+              </button>
+            </div>
 
-            {/* HOME — raised center button */}
-            <button onClick={() => setActiveTab('home')} className={clsx('w-16 h-16 rounded-2xl flex flex-col items-center justify-center -translate-y-4 shadow-xl border-2 transition-all active:scale-95 gap-1', activeTab === 'home' ? 'bg-gradient-to-b from-violet-500 to-violet-700 border-violet-400 text-white shadow-violet-500/40' : 'bg-slate-800 border-slate-700 text-slate-400 hover:bg-slate-700')}>
-              <Unlock size={22} />
-              <span className="text-[9px] font-bold uppercase tracking-wider">Reja</span>
-            </button>
+            {/* Reja (Center FAB) */}
+            <div className="w-[88px] relative flex justify-center h-full">
+              <button onClick={() => setActiveTab('home')} className={clsx(
+                'absolute -top-7 w-[76px] h-[76px] rounded-[24px] flex flex-col items-center justify-center shadow-2xl border-[6px] border-[#0f1117] transition-all active:scale-95 gap-1.5',
+                activeTab === 'home' 
+                  ? 'bg-gradient-to-b from-violet-500 to-indigo-600 text-white shadow-violet-500/30' 
+                  : 'bg-slate-800 text-slate-400 hover:bg-slate-700'
+              )}>
+                <Unlock size={26} />
+                <span className="text-[11px] font-black uppercase tracking-widest">Reja</span>
+              </button>
+            </div>
 
-            {/* Visitas */}
-            <button onClick={() => setActiveTab('guests')} className={clsx('flex flex-col items-center gap-1.5 px-3 py-1 rounded-xl transition-all min-w-[56px]', activeTab === 'guests' ? 'text-violet-400' : 'text-slate-600 hover:text-slate-400')}>
-              <UserPlus size={22} />
-              <span className="text-[10px] font-semibold">Visitas</span>
-            </button>
+            {/* Right Items (SOS & Perfil) */}
+            <div className="flex-1 flex justify-evenly items-center">
+              <button onClick={() => setActiveTab('sos')} className={clsx('flex flex-col items-center gap-1.5 transition-all w-14', activeTab === 'sos' ? 'text-red-400' : 'text-slate-500 hover:text-red-400')}>
+                <ShieldAlert size={24} />
+                <span className="text-[10px] font-bold">SOS</span>
+              </button>
 
-            {/* SOS */}
-            <button onClick={() => setActiveTab('sos')} className={clsx('flex flex-col items-center gap-1.5 px-3 py-1 rounded-xl transition-all min-w-[56px]', activeTab === 'sos' ? 'text-red-400' : 'text-slate-600 hover:text-red-400')}>
-              <div className="relative">
-                <ShieldAlert size={22} className={activeTab === 'sos' ? 'text-red-400' : ''} />
-                {activeTab === 'sos' && <div className="absolute -inset-1 rounded-full bg-red-500/20 animate-ping" />}
-              </div>
-              <span className={clsx('text-[10px] font-bold', activeTab === 'sos' ? 'text-red-400' : '')}>SOS</span>
-            </button>
+              <button onClick={() => setActiveTab('profile')} className={clsx('flex flex-col items-center gap-1.5 transition-all w-14', activeTab === 'profile' ? 'text-violet-400' : 'text-slate-500 hover:text-slate-300')}>
+                <User size={24} />
+                <span className="text-[10px] font-medium">Perfil</span>
+              </button>
+            </div>
+
           </div>
         </nav>
       </div>
